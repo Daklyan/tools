@@ -19,8 +19,44 @@ function usage {
 }
 
 function parse_parameters {
-    while [[ $# -gt 0 ]]; do
-        case $1 in
+    # while [[ $# -gt 0 ]]; do
+    #     case $1 in
+    #         -h|--help)
+    #             usage
+    #             exit 0
+    #             ;;
+    #         -e|--encoder)
+    #             ENCODER=${2,,}
+    #             shift
+    #             shift
+    #             ;;
+    #         -c|--codec)
+    #             CODEC=${2,,}
+    #             shift
+    #             shift
+    #             ;;
+    #         --file-extension)
+    #             FILE_EXTENSION=$2
+    #             shift
+    #             shift
+    #             ;;
+    #         *)
+    #             FILES_PATH="$1"
+    #             shift
+    #             shift
+    #             ;;
+    #     esac
+    # done
+
+
+    ARGS=$(getopt -o abg:d: --long alpha,beta,gamma:,delta: -- "$@")
+    if [[ $? -ne 0 ]]; then
+        exit 1;
+    fi
+
+    eval set -- "$ARGS"
+    while [ : ]; do
+        case "$1" in
             -h|--help)
                 usage
                 exit 0
