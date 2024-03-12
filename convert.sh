@@ -41,7 +41,7 @@ function parse_parameters {
                 shift
                 ;;
             *)
-                FILES_PATH=$1
+                FILES_PATH="$1"
                 shift
                 shift
                 ;;
@@ -53,7 +53,7 @@ function parse_parameters {
         exit 1
     fi
 
-    if [ -z $FILES_PATH ]; then
+    if [ -z "$FILES_PATH" ]; then
         echo -e "${RED} ERROR - Please provide a path${NC}"
         exit 1
     fi
@@ -78,23 +78,23 @@ function parse_parameters {
 function encode_files {
     mkdir ./tmp
 
-    for file in $(find $FILES_PATH -name "*$FILE_EXTENSION"); do
+    for file in $(find "$FILES_PATH" -name "*$FILE_EXTENSION"); do
         echo "Encoding $file in $CODEC"
         if [ $ENCODER = "software" ]; then
-            ffmpeg -i $file -c:v lib$CODEC "./tmp/$(basename $file)"
+            ffmpeg -i "$file" -c:v lib$CODEC "./tmp/$(basename "$file")"
         elif [[ $ENCODER = "nvidia" && $CODEC = "x265" ]]; then
-            ffmpeg -hwaccel auto -i $file -c:v hevc_nvenc -x265-params crf=25 -c:a copy "./tmp/$(basename $file)"
+            ffmpeg -hwaccel auto -i "$file" -c:v hevc_nvenc -x265-params crf=25 -c:a copy "./tmp/$(basename "$file")"
         elif [[ $ENCODER = "nvidia" && $CODEC = "x264" ]]; then
-            ffmpeg -hwaccel auto -i $file -c:v h264_nvenc -c:a copy "./tmp/$(basename $file)"
+            ffmpeg -hwaccel auto -i "$file" -c:v h264_nvenc -c:a copy "./tmp/$(basename "$file")"
         elif [[ $ENCODER = "amd" && $CODEC = "x265" ]]; then
-            ffmpeg -hwaccel auto -i $file -c:v hevc_vaapi -x265-params crf=25 -c:a copy "./tmp/$(basename $file)"
+            ffmpeg -hwaccel auto -i "$file" -c:v hevc_vaapi -x265-params crf=25 -c:a copy "./tmp/$(basename $file)"
         elif [[ $ENCODER = "amd" && $CODEC = "x264" ]]; then
-            ffmpeg -hwaccel auto -i $file -c:v h264_vaapi -c:a copy "./tmp/$(basename $file)"
+            ffmpeg -hwaccel auto -i "$file" -c:v h264_vaapi -c:a copy "./tmp/$(basename "$file")"
         fi
-        [ ! $? -eq 0 ] && rm "./tmp/$(basename $file)" && break
+        [ ! $? -eq 0 ] && rm "./tmp/$(basename "$file")" && break
 
         echo "Replacing $file"
-        mv "./tmp/$(basename $file)" $file
+        mv "./tmp/$(basename "$file")" "$file"
     done
 
     rm -rf ./tmp
