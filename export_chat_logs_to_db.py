@@ -1,7 +1,7 @@
 import mariadb
 import os
-import re
 import pytz
+import re
 import sys
 
 from datetime import datetime, date, time
@@ -13,11 +13,11 @@ DB_USER = os.environ.get("DB_USER")
 DB_PASS = os.environ.get("DB_PASS")
 DB_NAME = "chatlogs_test"
 PATH_TO_LOGS = "./sample/"
-CURSOR = None
+
 
 def connect_to_db():
     try:
-        CURSOR = mariadb.connect(
+        return mariadb.connect(
             user=DB_USER,
             password=DB_PASS,
             host=DB_HOST,
@@ -31,10 +31,15 @@ def connect_to_db():
 
 def write_message_to_db(pseudo: str, message: str, channel: str, timestamp):
     try:
-        CURSOR.execute(
+        # TODO: not initiate a connection each time we write a message
+        conn = connect_to_db()
+        cur = conn.cursor()
+        cur.execute(
             "INSERT INTO message (pseudo, message, channel, timestamp) VALUES (?, ?, ?, ?)",
             (pseudo, message, channel, timestamp)
         )
+        conn.commit()
+        conn.close()
     except mariadb.Error as err:
         print(f"Error while adding message to database: {err}")
 
@@ -72,7 +77,7 @@ def parse_file(dirpath: str, file: str):
                 pseudo=pseudo,
                 message=message,
                 channel=channel,
-                timestamp=timestamp
+                timestamp=date_object
             )
 
 
@@ -85,7 +90,4 @@ def parse_and_write_to_db():
 
 
 connect_to_db()
-
 parse_and_write_to_db()
-
-CURSOR.close()
