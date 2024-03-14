@@ -146,6 +146,8 @@ class Parser():
                     time(int(timestamp[0]), int(timestamp[1]), int(timestamp[2]), tzinfo=pytz.timezone("Europe/Paris"))
                 )
 
+                date_object.strftime('%Y-%m-%d  %H:%M:%S')
+
                 self.write_message_to_db(
                     pseudo=pseudo,
                     message=message,
