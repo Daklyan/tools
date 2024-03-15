@@ -11,8 +11,9 @@ DB_HOST = "192.168.1.2"
 DB_PORT = 3306
 DB_USER = os.environ.get("DB_USER")
 DB_PASS = os.environ.get("DB_PASS")
-DB_NAME = "chatlogs_test"
+DB_NAME = "chatlogs"
 PATH_TO_LOGS = "/mnt/c/Users/bolos/AppData/Roaming/Chatterino2/Logs/Twitch/Channels/"
+
 
 class Database():
     def __init__(self, db_user: str, db_pass: str, host: str, port: int, database: str):
@@ -113,6 +114,7 @@ class Parser():
             pseudo = re.search(r'] (.*?):', line).group(1)
             message = re.search(r': (.*?)$', line).group(1)
         except (TypeError, AttributeError) as err:
+            print(f"Error while parsing line \"{line}\": {err}")
             return None, None, None
         return timestamp.split(":"), pseudo, message
 
@@ -143,7 +145,10 @@ class Parser():
                 
                 date_object = datetime.combine(
                     date(int(date_us[0]), int(date_us[1]), int(date_us[2])),
-                    time(int(timestamp[0]), int(timestamp[1]), int(timestamp[2]), tzinfo=pytz.timezone("Europe/Paris"))
+                    time(int(timestamp[0]),
+                         int(timestamp[1]),
+                         int(timestamp[2]),
+                         tzinfo=pytz.timezone("Europe/Paris"))
                 )
 
                 date_object.strftime('%Y-%m-%d  %H:%M:%S')
@@ -166,7 +171,13 @@ class Parser():
                 self.parse_file(dirpath, file)
 
 
-database = Database(db_user=DB_USER, db_pass=DB_PASS, host=DB_HOST, port=DB_PORT, database=DB_NAME)
+database = Database(
+    db_user=DB_USER,
+    db_pass=DB_PASS,
+    host=DB_HOST,
+    port=DB_PORT,
+    database=DB_NAME
+)
 parser = Parser(database)
 
 parser.parse_and_write_to_db()
