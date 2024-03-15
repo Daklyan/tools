@@ -66,19 +66,18 @@ class Parser():
             print(f"Error fetching file in done_file in database: {err}")
         return False
 
-    def write_message_to_db(self, pseudo: str, message: str, channel: str, timestamp):
+    def write_many_messages_to_db(self, list_of_values: list):
         """Write logged message to database
 
         Args:
-            pseudo (str): User pseudo
-            message (str): Message written in chat
-            channel (str): Channel it was written to
-            timestamp (_type_): Timestamp it was sent to
+            list_of_values (list): List of tuples with needed parameters
         """
+        if not list_of_values:
+            return
         try:
-            self.cur.execute(
+            self.cur.executemany(
                 "INSERT INTO message (pseudo, message, channel, timestamp) VALUES (?, ?, ?, ?)",
-                (pseudo, message, channel, timestamp)
+                list_of_values
             )
             self.conn.commit()
         except mariadb.Error as err:
@@ -113,8 +112,7 @@ class Parser():
             timestamp = re.search(r'\[(.*?)\]', line).group(1)
             pseudo = re.search(r'] (.*?):', line).group(1)
             message = re.search(r': (.*?)$', line).group(1)
-        except (TypeError, AttributeError) as err:
-            print(f"Error while parsing line \"{line}\": {err}")
+        except (TypeError, AttributeError):
             return None, None, None
         return timestamp.split(":"), pseudo, message
 
@@ -128,21 +126,19 @@ class Parser():
         path = os.path.join(dirpath, file)
         channel = file.split('-')[0]
         date_us = file.replace(f"{channel}-", "")[:-4].split('-')
+        logged_lines = []
 
         if self.check_if_file_is_done(filename=file):
             print(f"File {file} already exported, skipping!")
             return
 
         with open(path, "r") as f:
-            for line in f.readlines():
-                if line[0] == "#":
-                    continue
-                
+            for line in f.readlines():                
                 timestamp, pseudo, message = self.parse_line(line)
-                
+
                 if None in (timestamp, pseudo, message):
                     continue
-                
+
                 date_object = datetime.combine(
                     date(int(date_us[0]), int(date_us[1]), int(date_us[2])),
                     time(int(timestamp[0]),
@@ -152,13 +148,9 @@ class Parser():
                 )
 
                 date_object.strftime('%Y-%m-%d  %H:%M:%S')
+                logged_lines.append((pseudo, message, channel, date_object))
 
-                self.write_message_to_db(
-                    pseudo=pseudo,
-                    message=message,
-                    channel=channel,
-                    timestamp=date_object
-                )
+            self.write_many_messages_to_db(list_of_values=logged_lines)
 
             self.write_file_to_done(channel=channel, filename=file)
 
