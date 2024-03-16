@@ -1,8 +1,10 @@
+import logging
 import mariadb
 import os
 import pytz
 import re
 import sys
+import time as timer
 
 from datetime import datetime, date, time
 
@@ -13,6 +15,15 @@ DB_USER = os.environ.get("DB_USER")
 DB_PASS = os.environ.get("DB_PASS")
 DB_NAME = "chatlogs"
 PATH_TO_LOGS = "/mnt/c/Users/bolos/AppData/Roaming/Chatterino2/Logs/Twitch/Channels/"
+LOGGER = logging.getLogger(__name__)
+logging.basicConfig(format='[%(levelname)s] - %(asctime)s %(message)s',
+                    datefmt='%d/%m/%Y %I:%M:%S',
+                    handlers=[
+                        logging.FileHandler("export.log"),
+                        logging.StreamHandler()
+                    ],
+                    encoding='utf-8',
+                    level=logging.DEBUG)
 
 
 class Database():
@@ -27,7 +38,7 @@ class Database():
             )
             self.cursor = self.connection.cursor()
         except mariadb.Error as err:
-            print(f"Error while connecting to database: {err}")
+            LOGGER.error(f"Error while connecting to database: {err}")
             sys.exit(1)
 
     def get_connection(self):
@@ -63,7 +74,7 @@ class Parser():
             if self.cur.fetchone():
                 return True
         except mariadb.Error as err:
-            print(f"Error fetching file in done_file in database: {err}")
+            LOGGER.error(f"Error fetching file in done_file in database: {err}")
         return False
 
     def write_many_messages_to_db(self, list_of_values: list):
@@ -81,7 +92,7 @@ class Parser():
             )
             self.conn.commit()
         except mariadb.Error as err:
-            print(f"Error while adding message to database: {err}")
+            LOGGER.error(f"Error while adding messages to database: {err}")
 
     def write_file_to_done(self, channel: str, filename: str):
         """Append file as done to the database
@@ -97,7 +108,7 @@ class Parser():
             )
             self.conn.commit()
         except mariadb.Error as err:
-            print(f"Error while adding file to done in database: {err}")
+            LOGGER.error(f"Error while adding file to done in database: {err}")
 
     def parse_line(self, line: str):
         """Parse a line to get the timestamp, pseudo and message out of it
@@ -112,7 +123,8 @@ class Parser():
             timestamp = re.search(r'\[(.*?)\]', line).group(1)
             pseudo = re.search(r'] (.*?):', line).group(1)
             message = re.search(r': (.*?)$', line).group(1)
-        except (TypeError, AttributeError):
+        except (TypeError, AttributeError) as err:
+            LOGGER.debug(f"Error while parsing line \"{line}\": {err}")
             return None, None, None
         return timestamp.split(":"), pseudo, message
 
@@ -128,38 +140,40 @@ class Parser():
         date_us = file.replace(f"{channel}-", "")[:-4].split('-')
         logged_lines = []
 
-        if self.check_if_file_is_done(filename=file):
-            print(f"File {file} already exported, skipping!")
-            return
+        try:
+            with open(path, "r") as f:
+                for line in f.readlines():
+                    timestamp, pseudo, message = self.parse_line(line)
 
-        with open(path, "r") as f:
-            for line in f.readlines():                
-                timestamp, pseudo, message = self.parse_line(line)
+                    if None in (timestamp, pseudo, message):
+                        continue
 
-                if None in (timestamp, pseudo, message):
-                    continue
+                    date_object = datetime.combine(
+                        date(int(date_us[0]), int(date_us[1]), int(date_us[2])),
+                        time(int(timestamp[0]),
+                             int(timestamp[1]),
+                             int(timestamp[2]),
+                             tzinfo=pytz.timezone("Europe/Paris"))
+                    )
 
-                date_object = datetime.combine(
-                    date(int(date_us[0]), int(date_us[1]), int(date_us[2])),
-                    time(int(timestamp[0]),
-                         int(timestamp[1]),
-                         int(timestamp[2]),
-                         tzinfo=pytz.timezone("Europe/Paris"))
-                )
+                    date_object.strftime('%Y-%m-%d  %H:%M:%S')
+                    logged_lines.append((pseudo, message, channel, date_object))
 
-                date_object.strftime('%Y-%m-%d  %H:%M:%S')
-                logged_lines.append((pseudo, message, channel, date_object))
+                self.write_many_messages_to_db(list_of_values=logged_lines)
 
-            self.write_many_messages_to_db(list_of_values=logged_lines)
-
-            self.write_file_to_done(channel=channel, filename=file)
+                self.write_file_to_done(channel=channel, filename=file)
+        except Exception as err:
+            LOGGER.debug(f"Error while parsing {file}: {err}")
 
     def parse_and_write_to_db(self):
         """Go through every file of a given path and starts the parsing / writing to database
         """
         for dirpath, _, files in os.walk(PATH_TO_LOGS):
             for file in files:
-                print(f"Processing {os.path.join(dirpath, file)} ...")
+                if self.check_if_file_is_done(filename=file):
+                    LOGGER.info(f"File {file} already exported, skipping!")
+                    continue
+                LOGGER.info(f"Processing {os.path.join(dirpath, file)} ...")
                 self.parse_file(dirpath, file)
 
 
@@ -172,5 +186,10 @@ database = Database(
 )
 parser = Parser(database)
 
+
+start = timer.time()
 parser.parse_and_write_to_db()
+end = timer.time()
+LOGGER.info(f"Export took {end - start} seconds")
+
 database.close_connection()
