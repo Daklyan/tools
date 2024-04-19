@@ -1,12 +1,15 @@
-import logging
-import mariadb
+"""Script to export Chatterino logs to mariadb database"""
+
 import os
-import pytz
 import re
 import sys
 import time as timer
+import logging
 
 from datetime import datetime, date, time
+
+import mariadb
+import pytz
 
 
 DB_HOST = "192.168.1.2"
@@ -26,6 +29,8 @@ logging.basicConfig(
 
 
 class Database:
+    """Class to interact with mariadb Database"""
+
     def __init__(self, db_user: str, db_pass: str, host: str, port: int, database: str):
         try:
             self.connection = mariadb.connect(
@@ -37,16 +42,21 @@ class Database:
             sys.exit(1)
 
     def get_connection(self):
+        """Get the database connection"""
         return self.connection
 
     def get_cursor(self):
+        """Returns the connection cursor"""
         return self.cursor
 
     def close_connection(self):
+        """Closes the database connection"""
         self.connection.close()
 
 
 class Parser:
+    """Class to parse chatterino log files"""
+
     def __init__(self, database: Database):
         self.db = database
         self.conn = self.db.get_connection()
@@ -132,7 +142,7 @@ class Parser:
         date_us = file.replace(f"{channel}-", "")[:-4].split("-")
         logged_lines = []
 
-        if date_us == datetime.today().strftime('%Y-%m-%d'):
+        if date_us == datetime.today().strftime("%Y-%m-%d"):
             LOGGER.debug(f"Skipping {file} as it still could be updated today")
             return
 

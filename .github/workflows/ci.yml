@@ -1,4 +1,4 @@
-name: Pylint
+name: Pylint & Black checks
 
 on: [push]
 
@@ -18,9 +18,9 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pylint black
-    - name: Analysing the code with pylint
-      run: |
-        pylint $(git ls-files '*.py')
     - name: Checking linting with black
       run: |
         black --check $(git ls-files '*.py')
+    - name: Analysing the code with pylint
+      run: |
+        pylint $(git ls-files '*.py')
