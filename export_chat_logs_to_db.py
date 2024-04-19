@@ -16,25 +16,20 @@ DB_PASS = os.environ.get("DB_PASS")
 DB_NAME = "chatlogs"
 PATH_TO_LOGS = "/mnt/c/Users/bolos/AppData/Roaming/Chatterino2/Logs/Twitch/Channels/"
 LOGGER = logging.getLogger(__name__)
-logging.basicConfig(format='[%(levelname)s] - %(asctime)s %(message)s',
-                    datefmt='%d/%m/%Y %I:%M:%S',
-                    handlers=[
-                        logging.FileHandler("export.log"),
-                        logging.StreamHandler()
-                    ],
-                    encoding='utf-8',
-                    level=logging.DEBUG)
+logging.basicConfig(
+    format="[%(levelname)s] - %(asctime)s %(message)s",
+    datefmt="%d/%m/%Y %I:%M:%S",
+    handlers=[logging.FileHandler("export.log"), logging.StreamHandler()],
+    encoding="utf-8",
+    level=logging.INFO,
+)
 
 
-class Database():
+class Database:
     def __init__(self, db_user: str, db_pass: str, host: str, port: int, database: str):
         try:
             self.connection = mariadb.connect(
-                user=db_user,
-                password=db_pass,
-                host=host,
-                port=port,
-                database=database
+                user=db_user, password=db_pass, host=host, port=port, database=database
             )
             self.cursor = self.connection.cursor()
         except mariadb.Error as err:
@@ -51,7 +46,7 @@ class Database():
         self.connection.close()
 
 
-class Parser():
+class Parser:
     def __init__(self, database: Database):
         self.db = database
         self.conn = self.db.get_connection()
@@ -67,10 +62,7 @@ class Parser():
             bool: Returns True if already done, if not returns False
         """
         try:
-            self.cur.execute(
-                "SELECT id FROM done_file WHERE file=?",
-                (filename,)
-            )
+            self.cur.execute("SELECT id FROM done_file WHERE file=?", (filename,))
             if self.cur.fetchone():
                 return True
         except mariadb.Error as err:
@@ -88,7 +80,7 @@ class Parser():
         try:
             self.cur.executemany(
                 "INSERT INTO message (pseudo, message, channel, timestamp) VALUES (?, ?, ?, ?)",
-                list_of_values
+                list_of_values,
             )
             self.conn.commit()
         except mariadb.Error as err:
@@ -104,7 +96,7 @@ class Parser():
         try:
             self.cur.execute(
                 "INSERT INTO done_file (channel, file) VALUES (?, ?)",
-                (channel, filename)
+                (channel, filename),
             )
             self.conn.commit()
         except mariadb.Error as err:
@@ -120,11 +112,11 @@ class Parser():
             (str, str, str) | (None, None, None): Parsed values or None if it fails to
         """
         try:
-            timestamp = re.search(r'\[(.*?)\]', line).group(1)
-            pseudo = re.search(r'] (.*?):', line).group(1)
-            message = re.search(r': (.*?)$', line).group(1)
+            timestamp = re.search(r"\[(.*?)\]", line).group(1)
+            pseudo = re.search(r"] (.*?):", line).group(1)
+            message = re.search(r": (.*?)$", line).group(1)
         except (TypeError, AttributeError) as err:
-            LOGGER.debug(f"Error while parsing line \"{line}\": {err}")
+            LOGGER.debug(f'Error while parsing line "{line}": {err}')
             return None, None, None
         return timestamp.split(":"), pseudo, message
 
@@ -136,9 +128,13 @@ class Parser():
             file (str): Filename to parse
         """
         path = os.path.join(dirpath, file)
-        channel = file.split('-')[0]
-        date_us = file.replace(f"{channel}-", "")[:-4].split('-')
+        channel = file.split("-")[0]
+        date_us = file.replace(f"{channel}-", "")[:-4].split("-")
         logged_lines = []
+
+        if date_us == datetime.today().strftime('%Y-%m-%d'):
+            LOGGER.debug(f"Skipping {file} as it still could be updated today")
+            return
 
         try:
             with open(path, "r") as f:
@@ -150,13 +146,15 @@ class Parser():
 
                     date_object = datetime.combine(
                         date(int(date_us[0]), int(date_us[1]), int(date_us[2])),
-                        time(int(timestamp[0]),
-                             int(timestamp[1]),
-                             int(timestamp[2]),
-                             tzinfo=pytz.timezone("Europe/Paris"))
+                        time(
+                            int(timestamp[0]),
+                            int(timestamp[1]),
+                            int(timestamp[2]),
+                            tzinfo=pytz.timezone("Europe/Paris"),
+                        ),
                     )
 
-                    date_object.strftime('%Y-%m-%d  %H:%M:%S')
+                    date_object.strftime("%Y-%m-%d  %H:%M:%S")
                     logged_lines.append((pseudo, message, channel, date_object))
 
                 self.write_many_messages_to_db(list_of_values=logged_lines)
@@ -166,8 +164,7 @@ class Parser():
             LOGGER.debug(f"Error while parsing {file}: {err}")
 
     def parse_and_write_to_db(self):
-        """Go through every file of a given path and starts the parsing / writing to database
-        """
+        """Go through every file of a given path and starts the parsing / writing to database"""
         for dirpath, _, files in os.walk(PATH_TO_LOGS):
             for file in files:
                 if self.check_if_file_is_done(filename=file):
@@ -178,11 +175,7 @@ class Parser():
 
 
 database = Database(
-    db_user=DB_USER,
-    db_pass=DB_PASS,
-    host=DB_HOST,
-    port=DB_PORT,
-    database=DB_NAME
+    db_user=DB_USER, db_pass=DB_PASS, host=DB_HOST, port=DB_PORT, database=DB_NAME
 )
 parser = Parser(database)
 
