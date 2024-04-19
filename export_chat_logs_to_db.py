@@ -142,7 +142,7 @@ class Parser:
         date_us = file.replace(f"{channel}-", "")[:-4].split("-")
         logged_lines = []
 
-        if date_us == datetime.today().strftime("%Y-%m-%d"):
+        if '-'.join(date_us) == datetime.today().strftime("%Y-%m-%d"):
             LOGGER.debug(f"Skipping {file} as it still could be updated today")
             return
 
