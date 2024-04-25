@@ -21,7 +21,7 @@ PATH_TO_LOGS = "/mnt/c/Users/bolos/AppData/Roaming/Chatterino2/Logs/Twitch/Chann
 LOGGER = logging.getLogger(__name__)
 logging.basicConfig(
     format="[%(levelname)s] - %(asctime)s %(message)s",
-    datefmt="%d/%m/%Y %I:%M:%S",
+    datefmt="%d/%m/%Y %H:%M:%S",
     handlers=[logging.FileHandler("export.log"), logging.StreamHandler()],
     encoding="utf-8",
     level=logging.INFO,
