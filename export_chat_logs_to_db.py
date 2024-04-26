@@ -39,22 +39,26 @@ class Database:
             self.__connection = mariadb.connect(
                 user=db_user, password=db_pass, host=host, port=port, database=database
             )
-            self.__cursor = self.__connection.cursor()
         except mariadb.Error as err:
             LOGGER.error(f"Error while connecting to database: {err}")
             sys.exit(1)
 
     def get_connection(self):
-        """Get the database connection"""
+        """Get a connection from pool"""
         return self.__connection
 
     def get_cursor(self):
-        """Returns the connection cursor"""
-        return self.__cursor
+        """Returns the connection's cursor"""
+        return self.get_connection().cursor()
 
     def close_connection(self):
-        """Closes the database connection"""
-        self.__connection.close()
+        self.get_connection().close()
+
+    def test_connection(self):
+        try:
+            self.get_connection().ping()
+        except mariadb.InterfaceError:
+            self.get_connection().reconnect()
 
 
 class Parser:
@@ -75,7 +79,10 @@ class Parser:
             bool: Returns True if already done, if not returns False
         """
         try:
-            self.cur.execute("SELECT id FROM done_file WHERE file=? LIMIT 1", (filename,))
+            self.db.test_connection()
+            self.cur.execute(
+                "SELECT id FROM done_file WHERE file=? LIMIT 1", (filename,)
+            )
             if self.cur.fetchone():
                 return True
         except mariadb.Error as err:
@@ -89,6 +96,7 @@ class Parser:
             filename (str): File done exporting
         """
         try:
+            self.db.test_connection()
             self.cur.execute(
                 "INSERT INTO done_file (channel, file) VALUES (?, ?)",
                 (channel, filename),
@@ -105,7 +113,9 @@ class Parser:
         """
         if not list_of_values:
             return
+
         try:
+            self.db.test_connection()
             self.cur.executemany(
                 "INSERT INTO message (file, pseudo, message, channel, timestamp) VALUES (?, ?, ?, ?, ?)",
                 list_of_values,
