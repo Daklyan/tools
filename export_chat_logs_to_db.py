@@ -75,12 +75,27 @@ class Parser:
             bool: Returns True if already done, if not returns False
         """
         try:
-            self.cur.execute("SELECT id FROM message WHERE file=? LIMIT 1", (filename,))
+            self.cur.execute("SELECT id FROM done_file WHERE file=? LIMIT 1", (filename,))
             if self.cur.fetchone():
                 return True
         except mariadb.Error as err:
             LOGGER.error(f"Error fetching file in database: {err}")
         return False
+
+    def write_file_to_done(self, channel: str, filename: str):
+        """Append file as done to the database
+        Args:
+            channel (str): Name of the twitch channel
+            filename (str): File done exporting
+        """
+        try:
+            self.cur.execute(
+                "INSERT INTO done_file (channel, file) VALUES (?, ?)",
+                (channel, filename),
+            )
+            self.conn.commit()
+        except mariadb.Error as err:
+            LOGGER.error(f"Error while adding file to done in database: {err}")
 
     def write_many_messages_to_db(self, list_of_values: list):
         """Write logged message to database
@@ -154,7 +169,8 @@ class Parser:
                     date_object.strftime("%Y-%m-%d  %H:%M:%S")
                     logged_lines.append((file, pseudo, message, channel, date_object))
 
-                self.write_many_messages_to_db(list_of_values=logged_lines)
+            self.write_many_messages_to_db(list_of_values=logged_lines)
+            self.write_file_to_done(channel=channel, filename=file)
         except Exception as err:
             LOGGER.debug(f"Error while parsing {file}: {err}")
 
