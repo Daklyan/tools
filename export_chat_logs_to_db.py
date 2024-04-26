@@ -75,7 +75,7 @@ class Parser:
             bool: Returns True if already done, if not returns False
         """
         try:
-            self.cur.execute("SELECT id FROM message WHERE file=?", (filename,))
+            self.cur.execute("SELECT id FROM message WHERE file=? LIMIT 1", (filename,))
             if self.cur.fetchone():
                 return True
         except mariadb.Error as err:
