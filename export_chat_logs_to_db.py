@@ -39,7 +39,7 @@ class Database:
             self.__connection = mariadb.connect(
                 user=db_user, password=db_pass, host=host, port=port, database=database
             )
-            self.__cursor = self.connection.cursor()
+            self.__cursor = self.__connection.cursor()
         except mariadb.Error as err:
             LOGGER.error(f"Error while connecting to database: {err}")
             sys.exit(1)
