@@ -12,7 +12,7 @@ import mariadb
 import pytz
 
 
-DB_HOST = "192.168.1.2"
+DB_HOST = "local-server"
 DB_PORT = 3306
 DB_USER = os.environ.get("DB_USER")
 DB_PASS = os.environ.get("DB_PASS")
